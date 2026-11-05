@@ -1,0 +1,10 @@
+streamlit
+requests
+openai
+edge-tts
+boto3
+static-ffmpeg
+opencv-python
+numpy
+av
+Pillow
