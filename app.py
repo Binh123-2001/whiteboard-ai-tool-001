@@ -130,7 +130,7 @@ if uploaded_file is not None:
         scenes = parse_srt(srt_content)
         
         # Lưu file SRT gốc
-        srt_file_path = OUTPUT_DIR / "original.srt"
+        srt_file_path = os.path.join(OUTPUT_DIR, "original.srt")
         OUTPUT_DIR.mkdir(exist_ok=True)
         with open(srt_file_path, "w", encoding="utf-8") as f:
             f.write(srt_content)
