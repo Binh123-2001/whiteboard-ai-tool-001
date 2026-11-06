@@ -64,12 +64,15 @@ R2_BUCKET = "whiteboard-videos"
 R2_PUBLIC_URL = st.secrets["R2_PUBLIC_URL"]
 
 # Đường dẫn tương đối cho máy chủ Cloud
-PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
-OUTPUT_DIR = os.path.join(PROJECT_DIR, "my_project")
-PYTHON_EXE = "python" # Trên cloud, dùng python mặc định
-RENDER_SCRIPT = os.path.join(PROJECT_DIR, "scripts", "render_stream_whiteboard.py")
-MERGE_SCRIPT = os.path.join(PROJECT_DIR, "scripts", "merge_videos_ffmpeg.py")
-HAND_IMG = os.path.join(PROJECT_DIR, "assets", "drawing-hand.png")
+from pathlib import Path
+
+# Đường dẫn tương đối cho máy chủ Cloud
+PROJECT_DIR = Path(__file__).parent.absolute()
+OUTPUT_DIR = PROJECT_DIR / "my_project"
+PYTHON_EXE = "python" 
+RENDER_SCRIPT = PROJECT_DIR / "scripts" / "render_stream_whiteboard.py"
+MERGE_SCRIPT = PROJECT_DIR / "scripts" / "merge_videos_ffmpeg.py"
+HAND_IMG = PROJECT_DIR / "assets" / "drawing-hand.png"
 
 # --- GIAO DIỆN WEB ---
 st.set_page_config(page_title="Whiteboard AI Generator", layout="wide")
@@ -130,7 +133,7 @@ if uploaded_file is not None:
         scenes = parse_srt(srt_content)
         
         # Lưu file SRT gốc
-        srt_file_path = os.path.join(OUTPUT_DIR, "original.srt")
+        srt_file_path = OUTPUT_DIR / "original.srt"
         OUTPUT_DIR.mkdir(exist_ok=True)
         with open(srt_file_path, "w", encoding="utf-8") as f:
             f.write(srt_content)
