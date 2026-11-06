@@ -71,7 +71,8 @@ from pathlib import Path
 # Đường dẫn tương đối cho máy chủ Cloud
 PROJECT_DIR = Path(__file__).parent.absolute()
 OUTPUT_DIR = PROJECT_DIR / "my_project"
-PYTHON_EXE = "python" 
+import sys
+PYTHON_EXE = sys.executable
 RENDER_SCRIPT = PROJECT_DIR / "scripts" / "render_stream_whiteboard.py"
 MERGE_SCRIPT = PROJECT_DIR / "scripts" / "merge_videos_ffmpeg.py"
 HAND_IMG = PROJECT_DIR / "assets" / "drawing-hand.png"
