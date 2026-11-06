@@ -52,6 +52,8 @@ import os
 # Lấy API Key từ file cấu hình bảo mật của Streamlit
 GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
 GROQ_MODEL = "openai/gpt-oss-120b" 
+# Khởi tạo kết nối với Groq AI
+ai_client = OpenAI(api_key=GROQ_API_KEY, base_url="https://api.groq.com/openai/v1")
 
 CF_ACCOUNT_ID = st.secrets["CF_ACCOUNT_ID"]
 CF_API_TOKEN = st.secrets["CF_API_TOKEN"]
