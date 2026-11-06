@@ -9,7 +9,6 @@ import os
 import re
 import asyncio
 import edge_tts
-from static_ffmpeg import run as ffmpeg_run
 from openai import OpenAI
 import boto3
 from botocore.config import Config
@@ -43,7 +42,8 @@ def upload_to_r2(local_file_path, r2_key):
         return None
 
 # Lấy đường dẫn FFmpeg và FFprobe
-ffmpeg_path, ffprobe_path = ffmpeg_run.get_or_fetch_platform_executables_else_raise()
+ffmpeg_path = "ffmpeg"
+ffprobe_path = "ffprobe"
 
 import streamlit as st
 import os
