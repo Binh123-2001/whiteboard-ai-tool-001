@@ -5,5 +5,4 @@ edge-tts
 boto3
 opencv-python-headless
 numpy
-av
 Pillow

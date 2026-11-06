@@ -5,7 +5,11 @@ from static_ffmpeg import run
 ffmpeg_path, ffprobe_path = run.get_or_fetch_platform_executables_else_raise()
 
 def merge_videos(video_files, output_file):
-    list_file_path = "concat_list.txt"
+    import tempfile
+import os
+
+# Luôn sử dụng thư mục tạm của hệ thống, nơi có quyền ghi
+list_file_path = os.path.join(tempfile.gettempdir(), "concat_list.txt")
     with open(list_file_path, "w", encoding="utf-8") as f:
         for video in video_files:
             abs_path = os.path.abspath(video)
