@@ -1,31 +1,25 @@
 import subprocess
 import sys
 import os
-from static_ffmpeg import run
-ffmpeg_path, ffprobe_path = run.get_or_fetch_platform_executables_else_raise()
+import tempfile
 
 def merge_videos(video_files, output_file):
-    import tempfile
-import os
-
-# Luôn sử dụng thư mục tạm của hệ thống, nơi có quyền ghi
-list_file_path = os.path.join(tempfile.gettempdir(), "concat_list.txt")
+    # 1. Sử dụng thư mục tạm của hệ thống (để tránh lỗi phân quyền trên Cloud)
+    list_file_path = os.path.join(tempfile.gettempdir(), "concat_list.txt")
+    
     with open(list_file_path, "w", encoding="utf-8") as f:
         for video in video_files:
             abs_path = os.path.abspath(video)
             f.write(f"file '{abs_path}'\n")
     
-    # Thay vì dùng -c copy, chúng ta dùng re-encode để đồng nhất dữ liệu
-    # Điều này ngăn chặn hoàn toàn lỗi video bị treo hoặc nhảy cóc thời gian
+    # 2. Gọi trực tiếp lệnh ffmpeg hệ thống (đã được cài qua file packages.txt)
     cmd = [
-        ffmpeg_path, 
+        "ffmpeg", 
         "-y",
         "-f", "concat",
         "-safe", "0",
         "-i", list_file_path,
-        "-c:v", "libx264",  # Mã hóa lại video
-        "-c:a", "aac",      # Mã hóa lại âm thanh
-        "-strict", "experimental",
+        "-c", "copy",
         output_file
     ]
     
@@ -35,7 +29,7 @@ list_file_path = os.path.join(tempfile.gettempdir(), "concat_list.txt")
         print("Merge successful!")
     except subprocess.CalledProcessError as e:
         print("Merge error:")
-        print(e.stderr)
+        print(e.stderr) # In ra lỗi chi tiết nếu có
         sys.exit(1)
     finally:
         if os.path.exists(list_file_path):
