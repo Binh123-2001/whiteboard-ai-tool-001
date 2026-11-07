@@ -244,6 +244,7 @@ if uploaded_file is not None:
             
             if public_video_url:
                 st.success("🎉 HOÀN THÀNH! Video đã được lưu trên mây.")
+                st.warning("⚠️ Lưu ý: Link tải video này sẽ tự động hết hạn và bị xóa sau 24 giờ. Bạn hãy tải video về máy ngay nhé!")
                 st.markdown(f"### [👉 Bấm vào đây để tải Video]({public_video_url})")
                 st.video(public_video_url)
             else:
