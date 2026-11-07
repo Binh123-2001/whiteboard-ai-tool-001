@@ -147,10 +147,22 @@ if uploaded_file is not None:
             ai_data = None
             for attempt in range(3):
                 try:
-                    prompt_user = f"Trả về JSON: {{\"image_prompt\": \"line art tiếng Anh mô tả: {scene_text}\", \"subtitle\": \"{scene_text}\"}}"
+                    prompt_system = "Bạn là một chuyên gia vẽ minh họa line-art. Bạn CHỈ trả về JSON hợp lệ."
+                    prompt_user = f"""
+    Đọc nội dung sau: "{scene_text}"
+    Hãy tưởng tượng ra MỘT khung hình cụ thể, trực quan, dễ vẽ (đồ vật, con vật, hoặc hành động rõ ràng) để minh họa cho nội dung này.
+    Tuyệt đối không vẽ các khái niệm trừu tượng (như sự học, tình yêu, sự thành công).
+    Mô tả khung hình đó bằng 1 câu tiếng Anh thật chi tiết.
+    Trả về đúng định dạng JSON: {{"image_prompt": "câu mô tả tiếng Anh chi tiết", "subtitle": "{scene_text}"}}
+    """
                     response = ai_client.chat.completions.create(
-                        model=GROQ_MODEL, messages=[{"role": "user", "content": prompt_user}],
-                        temperature=0.7, response_format={"type": "json_object"}
+                        model=GROQ_MODEL, 
+                        messages=[
+                            {"role": "system", "content": prompt_system},
+                            {"role": "user", "content": prompt_user}
+                        ],
+                        temperature=0.7, 
+                        response_format={"type": "json_object"}
                     )
                     ai_data = json.loads(response.choices[0].message.content)
                     break
@@ -166,7 +178,9 @@ if uploaded_file is not None:
             for attempt in range(3):
                 try:
                     url = f"https://api.cloudflare.com/client/v4/accounts/{CF_ACCOUNT_ID}/ai/run/{CF_MODEL}"
-                    payload = {"prompt": f"Simple black and white line art, whiteboard style. {img_prompt}", "steps": 4}
+                    # Thêm các từ khóa ép buộc phong cách rõ ràng, tránh vẽ nguệch ngoạc
+                    full_prompt = f"Coloring book page for kids, thick clean black outlines, pure white background, very clear and recognizable drawing, no abstract art. Subject: {img_prompt}"
+                    payload = {"prompt": full_prompt, "steps": 4}
                     cf_res = requests.post(url, headers={"Authorization": f"Bearer {CF_API_TOKEN}"}, json=payload, timeout=60)
                     if cf_res.status_code == 200:
                         with open(img_path, "wb") as f:
