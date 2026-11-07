@@ -60,7 +60,8 @@ R2_PUBLIC_URL = st.secrets["R2_PUBLIC_URL"]
 # Đường dẫn
 PROJECT_DIR = Path(__file__).parent.absolute()
 OUTPUT_DIR = PROJECT_DIR / "my_project"
-PYTHON_EXE = "python" 
+import sys
+PYTHON_EXE = sys.executable 
 RENDER_SCRIPT = PROJECT_DIR / "scripts" / "render_stream_whiteboard.py"
 MERGE_SCRIPT = PROJECT_DIR / "scripts" / "merge_videos_ffmpeg.py"
 HAND_IMG = PROJECT_DIR / "assets" / "drawing-hand.png"
