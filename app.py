@@ -1,3 +1,5 @@
+import urllib.parse
+from PIL import Image, ImageDraw
 import streamlit as st
 from pathlib import Path
 import requests
@@ -197,29 +199,52 @@ if uploaded_file is not None:
             img_prompt, subtitle_text = ai_data["image_prompt"], ai_data["subtitle"]
             
             # Cloudflare
+            # --- CƠ CHẾ TẠO ẢNH 3 LỚP (BẤT TỬ) ---
             img_path = OUTPUT_DIR / f"scene-{scene_num:02d}.png"
-            for attempt in range(3):
+            full_prompt = f"Coloring book page for kids, thick clean black outlines, pure white background, very clear and recognizable drawing, no abstract art. Subject: {img_prompt}"
+            img_success = False
+            
+            # LỚP 1: Thử Cloudflare 5 lần
+            for attempt in range(5):
                 try:
                     url = f"https://api.cloudflare.com/client/v4/accounts/{CF_ACCOUNT_ID}/ai/run/{CF_MODEL}"
-                    payload = {"prompt": f"Coloring book page for kids, thick clean black outlines, pure white background, very clear and recognizable drawing, no abstract art. Subject: {img_prompt}", "steps": 4}
+                    payload = {"prompt": full_prompt, "steps": 4}
                     cf_res = requests.post(url, headers={"Authorization": f"Bearer {CF_API_TOKEN}"}, json=payload, timeout=60)
+                    
                     if cf_res.status_code == 200:
-                        with open(img_path, "wb") as f:
-                            f.write(base64.b64decode(cf_res.json().get("result", {}).get("image")))
-                        break
-                except Exception:
-                    time.sleep(3)
-            
-            # Edge TTS
-            audio_path = OUTPUT_DIR / f"scene-{scene_num:02d}.mp3"
-            audio_success = asyncio.run(generate_tts_with_retry(subtitle_text, str(audio_path), selected_voice))
-            
-            if not audio_success:
-                est_duration = max(3, len(subtitle_text.split()) * 0.4)
-                subprocess.run([ffmpeg_path, "-y", "-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo", "-t", str(est_duration), "-q:a", "9", str(audio_path)], capture_output=True)
+                        img_b64 = cf_res.json().get("result", {}).get("image")
+                        if img_b64: # Kiểm tra xem có dữ liệu ảnh thực sự không
+                            with open(img_path, "wb") as f:
+                                f.write(base64.b64decode(img_b64))
+                            img_success = True
+                            break
+                except Exception as e:
+                    print(f"Lỗi Cloudflare (Lần {attempt+1}): {e}")
                 
-            audio_duration_ms = get_audio_duration(audio_path)
-            video_duration_ms = int(audio_duration_ms + 800) # Cộng 800ms nghỉ
+                time.sleep(5 + attempt * 2) # Đợi lâu hơn nếu thử lại nhiều lần
+            
+            # LỚP 2: Nếu Cloudflare thất bại, dùng Pollinations.AI dự phòng
+            if not img_success:
+                st.warning(f"⚠️ Cloudflare quá tải ở cảnh {scene_num}, đang chuyển sang máy chủ dự phòng...")
+                try:
+                    encoded_prompt = urllib.parse.quote(full_prompt)
+                    fallback_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width={canvas_w}&height={canvas_h}&nologo=true&model=flux"
+                    res = requests.get(fallback_url, timeout=60)
+                    if res.status_code == 200:
+                        with open(img_path, "wb") as f:
+                            f.write(res.content)
+                        img_success = True
+                except Exception as e:
+                    print(f"Lỗi dự phòng: {e}")
+
+            # LỚP 3: Nếu mạng sập hoàn toàn, tạo ảnh trắng để không làm hỏng video
+            if not img_success:
+                st.error(f"❌ Mạng có vấn đề ở cảnh {scene_num}. Tạo ảnh trắng thay thế để tiếp tục...")
+                img = Image.new('RGB', (canvas_w, canvas_h), color='white')
+                d = ImageDraw.Draw(img)
+                d.text((50, 50), f"Lỗi tạo ảnh cho: {img_prompt[:50]}...", fill="black")
+                img.save(img_path)
+            # --- KẾT THÚC CƠ CHẾ 3 LỚP ---
             
             # ĐỒNG BỘ PHỤ ĐỀ: Ghi lại thời gian thực tế
             start_time_str = ms_to_srt_time(current_time_ms)
