@@ -119,7 +119,7 @@ with st.sidebar:
     
     # TÙY CHỌN TỶ LỆ KHUNG HÌNH
     video_format = st.radio("Tỷ lệ khung hình:", ["Dọc (9:16 - TikTok/Reels)", "Ngang (16:9 - YouTube)"])
-        if "Dọc" in video_format:
+    if "Dọc" in video_format:
         canvas_w, canvas_h = 720, 1080
         # Sửa lại vùng vẽ (region) to hơn, nằm ở giữa màn hình
         region_coords = {"x": 110, "y": 250, "width": 500, "height": 500} 
