@@ -16,7 +16,6 @@ from botocore.config import Config
 # --- 1. CẤU HÌNH GIAO DIỆN ---
 st.set_page_config(page_title="Whiteboard AI Studio", page_icon="🎬", layout="centered")
 
-# CSS để ẩn menu mặc định, làm web trông như một sản phẩm thực thụ
 hide_st_style = """
             <style>
             #MainMenu {visibility: hidden;}
@@ -37,12 +36,12 @@ if not st.session_state.authenticated:
     if st.button("Đăng nhập"):
         if pwd == st.secrets["APP_PASSWORD"]:
             st.session_state.authenticated = True
-            st.rerun() # Tải lại trang ngay khi đăng nhập đúng
+            st.rerun()
         else:
             st.error("Mật khẩu không đúng, vui lòng thử lại!")
-    st.stop() # Dừng toàn bộ chương trình nếu chưa đăng nhập đúng
+    st.stop()
 
-# --- 3. CẤU HÌNH HỆ THỐNG (Lấy từ Secrets) ---
+# --- 3. CẤU HÌNH HỆ THỐNG ---
 GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
 GROQ_MODEL = "openai/gpt-oss-120b" 
 ai_client = OpenAI(api_key=GROQ_API_KEY, base_url="https://api.groq.com/openai/v1")
@@ -56,19 +55,17 @@ R2_SECRET_KEY = st.secrets["R2_SECRET_KEY"]
 R2_ENDPOINT = st.secrets["R2_ENDPOINT"]
 R2_BUCKET = "whiteboard-videos"
 R2_PUBLIC_URL = st.secrets["R2_PUBLIC_URL"]
-import os
-# Trên Streamlit Cloud, ffmpeg có sẵn trong hệ thống
-ffmpeg_path = "ffmpeg"
-ffprobe_path = "ffprobe"
 
-# Đường dẫn
+# Đường dẫn Cloud
 PROJECT_DIR = Path(__file__).parent.absolute()
 OUTPUT_DIR = PROJECT_DIR / "my_project"
-import sys
-PYTHON_EXE = sys.executable 
+PYTHON_EXE = "python"
 RENDER_SCRIPT = PROJECT_DIR / "scripts" / "render_stream_whiteboard.py"
 MERGE_SCRIPT = PROJECT_DIR / "scripts" / "merge_videos_ffmpeg.py"
 HAND_IMG = PROJECT_DIR / "assets" / "drawing-hand.png"
+
+ffmpeg_path = "ffmpeg"
+ffprobe_path = "ffprobe"
 
 s3_client = boto3.client(
     "s3", endpoint_url=R2_ENDPOINT, aws_access_key_id=R2_ACCESS_KEY,
@@ -95,17 +92,41 @@ async def generate_tts_with_retry(text, output_file, voice):
     return False
 
 def get_audio_duration(file_path):
-    cmd = ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", str(file_path)]
+    cmd = [ffprobe_path, "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", str(file_path)]
     result = subprocess.run(cmd, capture_output=True, text=True)
     return float(result.stdout.strip()) * 1000
 
-# --- 4. GIAO DIỆN CHÍNH & TÙY CHỌN ---
+# Hàm chuyển đổi mili-giây sang định dạng thời gian của SRT
+def ms_to_srt_time(ms):
+    hours = int(ms // 3600000)
+    ms %= 3600000
+    minutes = int(ms // 60000)
+    ms %= 60000
+    seconds = int(ms // 1000)
+    milliseconds = int(ms % 1000)
+    return f"{hours:02d}:{minutes:02d}:{seconds:02d},{milliseconds:03d}"
+
+# --- 4. GIAO DIỆN CHÍNH ---
 st.title("🎬 Whiteboard AI Studio")
 st.markdown("Tự động biến file phụ đề (SRT) thành video Whiteboard có giọng đọc.")
 
 with st.sidebar:
-    st.image("https://cdn-icons-png.flaticon.com/512/2103/2103604.png", width=100) # Logo mẫu (bạn có thể thay link ảnh khác)
+    st.image("https://cdn-icons-png.flaticon.com/512/2103/2103604.png", width=100)
     st.header("Cấu hình Video")
+    
+    # TÙY CHỌN TỶ LỆ KHUNG HÌNH
+    video_format = st.radio("Tỷ lệ khung hình:", ["Dọc (9:16 - TikTok/Reels)", "Ngang (16:9 - YouTube)"])
+    if "Dọc" in video_format:
+        canvas_w, canvas_h = 720, 1080
+        region_coords = {"x": 160, "y": 390, "width": 400, "height": 300} # Toạ độ cho video dọc
+        hand_start, hand_end = [170, 400], [530, 630]
+        sub_fontsize, sub_margin = 14, 20 # Chữ nhỏ hơn cho video dọc
+    else:
+        canvas_w, canvas_h = 1080, 720
+        region_coords = {"x": 340, "y": 210, "width": 400, "height": 300} # Toạ độ cho video ngang
+        hand_start, hand_end = [350, 220], [700, 450]
+        sub_fontsize, sub_margin = 18, 30
+
     voice_option = st.selectbox(
         "Chọn giọng đọc:",
         ["Nữ (HoaiMy)", "Nam (NamMinh)", "Nữ miền Nam (LanAnh)", "Nam miền Bắc (BaoQuoc)"]
@@ -117,9 +138,7 @@ with st.sidebar:
         "Nam miền Bắc (BaoQuoc)": "vi-VN-BaoQuocNeural"
     }
     selected_voice = voice_map[voice_option]
-    
-    show_subtitles = st.checkbox("Hiển thị phụ đề", value=False)
-    st.info("💡 Mẹo: Video từ 3-5 phút sẽ cho chất lượng tốt nhất.")
+    show_subtitles = st.checkbox("Hiển thị phụ đề", value=True)
 
 # --- 5. XỬ LÝ CHÍNH ---
 uploaded_file = st.file_uploader("Tải lên file phụ đề (.srt)", type=["srt"])
@@ -134,6 +153,7 @@ if uploaded_file is not None:
         
         scenes = parse_srt(srt_content)
         srt_file_path = OUTPUT_DIR / "original.srt"
+        synced_srt_path = OUTPUT_DIR / "synced.srt" # File phụ đề đồng bộ mới
         OUTPUT_DIR.mkdir(exist_ok=True)
         with open(srt_file_path, "w", encoding="utf-8") as f:
             f.write(srt_content)
@@ -143,6 +163,10 @@ if uploaded_file is not None:
         status_text = st.empty()
         video_clips = []
         
+        # Biến dùng để đồng bộ phụ đề
+        current_time_ms = 0
+        synced_srt_content = ""
+
         for i, scene_text in enumerate(scenes):
             scene_num = i + 1
             status_text.info(f"⏳ Đang xử lý cảnh {scene_num}/{len(scenes)}...")
@@ -154,19 +178,14 @@ if uploaded_file is not None:
                     prompt_system = "Bạn là một chuyên gia vẽ minh họa line-art. Bạn CHỈ trả về JSON hợp lệ."
                     prompt_user = f"""
     Đọc nội dung sau: "{scene_text}"
-    Hãy tưởng tượng ra MỘT khung hình cụ thể, trực quan, dễ vẽ (đồ vật, con vật, hoặc hành động rõ ràng) để minh họa cho nội dung này.
-    Tuyệt đối không vẽ các khái niệm trừu tượng (như sự học, tình yêu, sự thành công).
+    Hãy tưởng tượng ra MỘT khung hình cụ thể, trực quan, dễ vẽ để minh họa cho nội dung này.
     Mô tả khung hình đó bằng 1 câu tiếng Anh thật chi tiết.
     Trả về đúng định dạng JSON: {{"image_prompt": "câu mô tả tiếng Anh chi tiết", "subtitle": "{scene_text}"}}
     """
                     response = ai_client.chat.completions.create(
                         model=GROQ_MODEL, 
-                        messages=[
-                            {"role": "system", "content": prompt_system},
-                            {"role": "user", "content": prompt_user}
-                        ],
-                        temperature=0.7, 
-                        response_format={"type": "json_object"}
+                        messages=[{"role": "system", "content": prompt_system}, {"role": "user", "content": prompt_user}],
+                        temperature=0.7, response_format={"type": "json_object"}
                     )
                     ai_data = json.loads(response.choices[0].message.content)
                     break
@@ -174,7 +193,6 @@ if uploaded_file is not None:
                     time.sleep(5)
             
             if not ai_data: continue
-            
             img_prompt, subtitle_text = ai_data["image_prompt"], ai_data["subtitle"]
             
             # Cloudflare
@@ -182,9 +200,7 @@ if uploaded_file is not None:
             for attempt in range(3):
                 try:
                     url = f"https://api.cloudflare.com/client/v4/accounts/{CF_ACCOUNT_ID}/ai/run/{CF_MODEL}"
-                    # Thêm các từ khóa ép buộc phong cách rõ ràng, tránh vẽ nguệch ngoạc
-                    full_prompt = f"Coloring book page for kids, thick clean black outlines, pure white background, very clear and recognizable drawing, no abstract art. Subject: {img_prompt}"
-                    payload = {"prompt": full_prompt, "steps": 4}
+                    payload = {"prompt": f"Coloring book page for kids, thick clean black outlines, pure white background, very clear and recognizable drawing, no abstract art. Subject: {img_prompt}", "steps": 4}
                     cf_res = requests.post(url, headers={"Authorization": f"Bearer {CF_API_TOKEN}"}, json=payload, timeout=60)
                     if cf_res.status_code == 200:
                         with open(img_path, "wb") as f:
@@ -199,16 +215,22 @@ if uploaded_file is not None:
             
             if not audio_success:
                 est_duration = max(3, len(subtitle_text.split()) * 0.4)
-                subprocess.run(["ffmpeg", "-y", "-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo", "-t", str(est_duration), "-q:a", "9", str(audio_path)], capture_output=True)
+                subprocess.run([ffmpeg_path, "-y", "-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo", "-t", str(est_duration), "-q:a", "9", str(audio_path)], capture_output=True)
                 
             audio_duration_ms = get_audio_duration(audio_path)
-            video_duration_ms = int(audio_duration_ms + 800)
+            video_duration_ms = int(audio_duration_ms + 800) # Cộng 800ms nghỉ
             
-            # JSON cấu hình vẽ
+            # ĐỒNG BỘ PHỤ ĐỀ: Ghi lại thời gian thực tế
+            start_time_str = ms_to_srt_time(current_time_ms)
+            end_time_str = ms_to_srt_time(current_time_ms + audio_duration_ms)
+            synced_srt_content += f"{scene_num}\n{start_time_str} --> {end_time_str}\n{subtitle_text}\n\n"
+            current_time_ms += video_duration_ms
+            
+            # JSON cấu hình vẽ (Đã cập nhật tọa độ theo khung hình)
             annotation_json = {
-                "sceneId": f"scene-{scene_num:02d}", "canvas": {"width": 1080, "height": 720},
+                "sceneId": f"scene-{scene_num:02d}", "canvas": {"width": canvas_w, "height": canvas_h},
                 "storyBasis": subtitle_text, "sceneDurationMs": video_duration_ms,
-                "elements": [{"id": "el-1", "label": "Object", "sequence": 1, "narrativeRole": "Vật thể", "subtitle": subtitle_text, "type": "structure", "region": {"x": 340, "y": 210, "width": 400, "height": 300}, "reveal": {"direction": "left_to_right", "startMs": 500, "durationMs": max(2000, video_duration_ms - 1500), "maskPaddingPx": 22, "protectedRegions": []}, "handPath": {"start": [350, 220], "end": [700, 450], "easing": "easeInOut"}}]
+                "elements": [{"id": "el-1", "label": "Object", "sequence": 1, "narrativeRole": "Vật thể", "subtitle": subtitle_text, "type": "structure", "region": region_coords, "reveal": {"direction": "left_to_right", "startMs": 500, "durationMs": max(2000, video_duration_ms - 1500), "maskPaddingPx": 22, "protectedRegions": []}, "handPath": {"start": hand_start, "end": hand_end, "easing": "easeInOut"}}]
             }
             json_path = OUTPUT_DIR / f"scene-{scene_num:02d}.annotation.json"
             with open(json_path, "w", encoding="utf-8") as f:
@@ -216,54 +238,50 @@ if uploaded_file is not None:
                 
             # Render
             video_output = OUTPUT_DIR / f"scene-{scene_num:02d}.mp4"
-            subprocess.run([PYTHON_EXE, str(RENDER_SCRIPT), str(img_path), str(json_path), str(video_output), str(HAND_IMG)], env={**os.environ, "PYTHONIOENCODING": "utf-8"}, capture_output=True)
+            try:
+                subprocess.run([PYTHON_EXE, str(RENDER_SCRIPT), str(img_path), str(json_path), str(video_output), str(HAND_IMG)], env={**os.environ, "PYTHONIOENCODING": "utf-8"}, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
+            except subprocess.CalledProcessError as e:
+                st.error(f"Lỗi render video cảnh {scene_num}:")
+                st.code(e.stderr)
+                st.stop()
             
             # Ghép Audio
-                       
             video_with_audio = OUTPUT_DIR / f"scene-{scene_num:02d}_audio.mp4"
-            
-            # Kiểm tra sự tồn tại của file trước khi ghép
-            if not os.path.exists(video_output):
-                st.error(f"Không tìm thấy file video cảnh {scene_num}: {video_output}")
-                st.stop()
-            if not os.path.exists(audio_path):
-                st.error(f"Không tìm thấy file âm thanh cảnh {scene_num}: {audio_path}")
-                st.stop()
-
-            # Sử dụng ffmpeg_path tuyệt đối, không thêm dấu ngoặc kép vào đường dẫn
             cmd_audio = [ffmpeg_path, "-y", "-i", str(video_output), "-i", str(audio_path), "-c:v", "copy", "-c:a", "aac", "-shortest", str(video_with_audio)]
-            
-            try:
-                # Thêm shell=False (mặc định) để subprocess tự xử lý đường dẫn có dấu cách
-                subprocess.run(cmd_audio, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
-            except subprocess.CalledProcessError as e:
-                st.error(f"Lỗi ghép âm thanh cảnh {scene_num}:")
-                st.code(f"STDOUT:\n{e.stdout}\n\nSTDERR:\n{e.stderr}")
-                st.stop()
+            subprocess.run(cmd_audio, capture_output=True, check=True)
             video_clips.append(str(video_with_audio))
             
             progress_bar.progress((i + 1) / len(scenes))
+
+        # Ghi file phụ đề đồng bộ
+        with open(synced_srt_path, "w", encoding="utf-8") as f:
+            f.write(synced_srt_content)
 
         # Ghép các cảnh & Upload
         if video_clips:
             status_text.info("🔄 Đang ghép các cảnh...")
             final_output = OUTPUT_DIR / "FINAL_VIDEO.mp4"
+            
             try:
                 subprocess.run([PYTHON_EXE, str(MERGE_SCRIPT), str(final_output)] + video_clips, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
             except subprocess.CalledProcessError as e:
                 st.error("Lỗi khi ghép video:")
-                # In ra cả stdout và stderr để không bỏ sót bất kỳ thông báo lỗi nào
-                st.code(f"STDOUT:\n{e.stdout}\n\nSTDERR:\n{e.stderr}")
+                st.code(e.stderr)
                 st.stop()
             
             file_to_upload = final_output
             
-            # Phụ đề
+            # Chèn phụ đề (Sử dụng file synced.srt thay vì file gốc)
             if show_subtitles:
-                status_text.info("🔄 Đang chèn phụ đề...")
+                status_text.info("🔄 Đang chèn phụ đề (Đã đồng bộ)...")
                 final_with_subs = OUTPUT_DIR / "FINAL_VIDEO_SUBBED.mp4"
-                srt_path_escaped = str(srt_file_path).replace("\\", "/").replace(":", "\\:")
-                sub_cmd = ["ffmpeg", "-y", "-i", str(final_output), "-vf", f"subtitles='{srt_path_escaped}':force_style='FontName=Arial,FontSize=16,PrimaryColour=&H00FFFFFF,OutlineColour=&H80000000,BorderStyle=3,Outline=1,Shadow=0,MarginV=25'", "-c:v", "libx264", "-c:a", "aac", str(final_with_subs)]
+                srt_path_escaped = str(synced_srt_path).replace("\\", "/").replace(":", "\\:")
+                
+                sub_cmd = [
+                    ffmpeg_path, "-y", "-i", str(final_output),
+                    "-vf", f"subtitles='{srt_path_escaped}':force_style='FontName=Arial,FontSize={sub_fontsize},PrimaryColour=&H00FFFFFF,OutlineColour=&H80000000,BorderStyle=3,Outline=1,Shadow=0,Alignment=2,MarginV={sub_margin}'",
+                    "-c:v", "libx264", "-c:a", "aac", str(final_with_subs)
+                ]
                 subprocess.run(sub_cmd, capture_output=True, check=True)
                 file_to_upload = final_with_subs
 
