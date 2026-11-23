@@ -208,7 +208,7 @@ if uploaded_file is not None:
             for attempt in range(5):
                 try:
                     url = f"https://api.cloudflare.com/client/v4/accounts/{CF_ACCOUNT_ID}/ai/run/{CF_MODEL}"
-                    payload = {"prompt": full_prompt, "steps": 4}
+                    payload = {"prompt": f"black and white line art, thick outlines, white background, {img_prompt}", "steps": 4}
                     cf_res = requests.post(url, headers={"Authorization": f"Bearer {CF_API_TOKEN}"}, json=payload, timeout=60)
                     
                     if cf_res.status_code == 200:
@@ -227,6 +227,7 @@ if uploaded_file is not None:
             if not img_success:
                 st.warning(f"⚠️ Cloudflare quá tải ở cảnh {scene_num}, đang chuyển sang máy chủ dự phòng...")
                 try:
+                    time.sleep(5)
                     encoded_prompt = urllib.parse.quote(full_prompt)
                     fallback_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width={canvas_w}&height={canvas_h}&nologo=true&model=flux"
                     res = requests.get(fallback_url, timeout=60)
