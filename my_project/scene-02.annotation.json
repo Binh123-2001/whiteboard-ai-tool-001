@@ -1,0 +1,43 @@
+{
+  "sceneId": "scene-02",
+  "canvas": {
+    "width": 1080,
+    "height": 720
+  },
+  "storyBasis": "Hãy thử tải file phụ đề lên hệ thống của chúng tôi.",
+  "sceneDurationMs": 4496,
+  "elements": [
+    {
+      "id": "el-1",
+      "label": "Object",
+      "sequence": 1,
+      "narrativeRole": "Vật thể",
+      "subtitle": "Hãy thử tải file phụ đề lên hệ thống của chúng tôi.",
+      "type": "structure",
+      "region": {
+        "x": 340,
+        "y": 210,
+        "width": 400,
+        "height": 300
+      },
+      "reveal": {
+        "direction": "left_to_right",
+        "startMs": 500,
+        "durationMs": 2996,
+        "maskPaddingPx": 22,
+        "protectedRegions": []
+      },
+      "handPath": {
+        "start": [
+          350,
+          220
+        ],
+        "end": [
+          700,
+          450
+        ],
+        "easing": "easeInOut"
+      }
+    }
+  ]
+}

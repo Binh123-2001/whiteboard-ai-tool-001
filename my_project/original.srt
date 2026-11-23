@@ -1,0 +1,15 @@
+1
+00:00:00,000 --> 00:00:04,000
+Bạn đang mệt mỏi vì phải dựng video thủ công mỗi ngày?
+
+2
+00:00:04,500 --> 00:00:08,500
+Hãy thử tải file phụ đề lên hệ thống của chúng tôi.
+
+3
+00:00:09,000 --> 00:00:13,000
+AI sẽ tự động vẽ hình, lồng tiếng và tạo hiệu ứng.
+
+4
+00:00:13,500 --> 00:00:18,000
+Chỉ vài phút sau, bạn đã có một video whiteboard hoàn chỉnh!

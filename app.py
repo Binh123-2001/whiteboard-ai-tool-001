@@ -56,6 +56,10 @@ R2_SECRET_KEY = st.secrets["R2_SECRET_KEY"]
 R2_ENDPOINT = st.secrets["R2_ENDPOINT"]
 R2_BUCKET = "whiteboard-videos"
 R2_PUBLIC_URL = st.secrets["R2_PUBLIC_URL"]
+import os
+# Trên Streamlit Cloud, ffmpeg có sẵn trong hệ thống
+ffmpeg_path = "ffmpeg"
+ffprobe_path = "ffprobe"
 
 # Đường dẫn
 PROJECT_DIR = Path(__file__).parent.absolute()
@@ -215,8 +219,27 @@ if uploaded_file is not None:
             subprocess.run([PYTHON_EXE, str(RENDER_SCRIPT), str(img_path), str(json_path), str(video_output), str(HAND_IMG)], env={**os.environ, "PYTHONIOENCODING": "utf-8"}, capture_output=True)
             
             # Ghép Audio
+                       
             video_with_audio = OUTPUT_DIR / f"scene-{scene_num:02d}_audio.mp4"
-            subprocess.run(["ffmpeg", "-y", "-i", str(video_output), "-i", str(audio_path), "-c:v", "copy", "-c:a", "aac", "-shortest", str(video_with_audio)], capture_output=True)
+            
+            # Kiểm tra sự tồn tại của file trước khi ghép
+            if not os.path.exists(video_output):
+                st.error(f"Không tìm thấy file video cảnh {scene_num}: {video_output}")
+                st.stop()
+            if not os.path.exists(audio_path):
+                st.error(f"Không tìm thấy file âm thanh cảnh {scene_num}: {audio_path}")
+                st.stop()
+
+            # Sử dụng ffmpeg_path tuyệt đối, không thêm dấu ngoặc kép vào đường dẫn
+            cmd_audio = [ffmpeg_path, "-y", "-i", str(video_output), "-i", str(audio_path), "-c:v", "copy", "-c:a", "aac", "-shortest", str(video_with_audio)]
+            
+            try:
+                # Thêm shell=False (mặc định) để subprocess tự xử lý đường dẫn có dấu cách
+                subprocess.run(cmd_audio, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
+            except subprocess.CalledProcessError as e:
+                st.error(f"Lỗi ghép âm thanh cảnh {scene_num}:")
+                st.code(f"STDOUT:\n{e.stdout}\n\nSTDERR:\n{e.stderr}")
+                st.stop()
             video_clips.append(str(video_with_audio))
             
             progress_bar.progress((i + 1) / len(scenes))
@@ -225,7 +248,13 @@ if uploaded_file is not None:
         if video_clips:
             status_text.info("🔄 Đang ghép các cảnh...")
             final_output = OUTPUT_DIR / "FINAL_VIDEO.mp4"
-            subprocess.run([PYTHON_EXE, str(MERGE_SCRIPT), str(final_output)] + video_clips, capture_output=True, check=True)
+            try:
+                subprocess.run([PYTHON_EXE, str(MERGE_SCRIPT), str(final_output)] + video_clips, capture_output=True, text=True, check=True, encoding='utf-8', errors='replace')
+            except subprocess.CalledProcessError as e:
+                st.error("Lỗi khi ghép video:")
+                # In ra cả stdout và stderr để không bỏ sót bất kỳ thông báo lỗi nào
+                st.code(f"STDOUT:\n{e.stdout}\n\nSTDERR:\n{e.stderr}")
+                st.stop()
             
             file_to_upload = final_output
             

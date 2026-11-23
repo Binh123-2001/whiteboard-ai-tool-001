@@ -1,0 +1,43 @@
+{
+  "sceneId": "scene-03",
+  "canvas": {
+    "width": 1080,
+    "height": 720
+  },
+  "storyBasis": "AI sẽ tự động vẽ hình, lồng tiếng và tạo hiệu ứng.",
+  "sceneDurationMs": 5168,
+  "elements": [
+    {
+      "id": "el-1",
+      "label": "Object",
+      "sequence": 1,
+      "narrativeRole": "Vật thể",
+      "subtitle": "AI sẽ tự động vẽ hình, lồng tiếng và tạo hiệu ứng.",
+      "type": "structure",
+      "region": {
+        "x": 340,
+        "y": 210,
+        "width": 400,
+        "height": 300
+      },
+      "reveal": {
+        "direction": "left_to_right",
+        "startMs": 500,
+        "durationMs": 3668,
+        "maskPaddingPx": 22,
+        "protectedRegions": []
+      },
+      "handPath": {
+        "start": [
+          350,
+          220
+        ],
+        "end": [
+          700,
+          450
+        ],
+        "easing": "easeInOut"
+      }
+    }
+  ]
+}
