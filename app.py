@@ -245,7 +245,10 @@ if uploaded_file is not None:
                 d.text((50, 50), f"Lỗi tạo ảnh cho: {img_prompt[:50]}...", fill="black")
                 img.save(img_path)
             # --- KẾT THÚC CƠ CHẾ 3 LỚP ---
-            
+             # MỚI THÊM: Khai báo độ dài âm thanh (Lấy từ file mp3 vừa tạo)
+            audio_duration_ms = get_audio_duration(audio_path) 
+            video_duration_ms = int(audio_duration_ms + 800)
+
             # ĐỒNG BỘ PHỤ ĐỀ: Ghi lại thời gian thực tế
             start_time_str = ms_to_srt_time(current_time_ms)
             end_time_str = ms_to_srt_time(current_time_ms + audio_duration_ms)
