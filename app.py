@@ -245,15 +245,26 @@ if uploaded_file is not None:
                 d.text((50, 50), f"Lỗi tạo ảnh cho: {img_prompt[:50]}...", fill="black")
                 img.save(img_path)
             # --- KẾT THÚC CƠ CHẾ 3 LỚP ---
-             # MỚI THÊM: Khai báo độ dài âm thanh (Lấy từ file mp3 vừa tạo)
+
+            # 1. TẠO GIỌNG ĐỌC (EDGE TTS) - ĐÂY LÀ PHẦN ĐANG BỊ THIẾU
+            audio_path = OUTPUT_DIR / f"scene-{scene_num:02d}.mp3"
+            audio_success = asyncio.run(generate_tts_with_retry(subtitle_text, str(audio_path), selected_voice))
+            
+            if not audio_success:
+                est_duration = max(3, len(subtitle_text.split()) * 0.4)
+                subprocess.run([ffmpeg_path, "-y", "-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo", "-t", str(est_duration), "-q:a", "9", str(audio_path)], capture_output=True)
+
+            # 2. ĐO ĐỘ DÀI ÂM THANH (Lúc này audio_path đã tồn tại)
             audio_duration_ms = get_audio_duration(audio_path) 
             video_duration_ms = int(audio_duration_ms + 800)
 
-            # ĐỒNG BỘ PHỤ ĐỀ: Ghi lại thời gian thực tế
+            # 3. ĐỒNG BỘ PHỤ ĐỀ
             start_time_str = ms_to_srt_time(current_time_ms)
             end_time_str = ms_to_srt_time(current_time_ms + audio_duration_ms)
             synced_srt_content += f"{scene_num}\n{start_time_str} --> {end_time_str}\n{subtitle_text}\n\n"
             current_time_ms += video_duration_ms
+            
+            # ... (Phần JSON cấu hình vẽ bên dưới giữ nguyên)
             
             # JSON cấu hình vẽ (Đã cập nhật tọa độ theo khung hình)
             annotation_json = {
