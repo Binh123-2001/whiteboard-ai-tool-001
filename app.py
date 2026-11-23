@@ -179,9 +179,9 @@ if uploaded_file is not None:
                     prompt_system = "Bạn là một chuyên gia vẽ minh họa line-art. Bạn CHỈ trả về JSON hợp lệ."
                     prompt_user = f"""
     Đọc nội dung sau: "{scene_text}"
-    Hãy tưởng tượng ra MỘT khung hình cụ thể, trực quan, dễ vẽ (đồ vật, con vật, hoặc hành động rõ ràng) để minh họa cho nội dung này.
-    Tuyệt đối không vẽ các khái niệm trừu tượng.
-    Mô tả khung hình đó bằng 1 câu tiếng Anh thật chi tiết, sử dụng ngôn ngữ đơn giản, KHÔNG dùng các từ ngữ tả thực như (realistic, photographic, highly detailed).
+    Hãy tưởng tượng ra MỘT khung hình cụ thể, trực quan để minh họa cho nội dung này.
+    Nếu nội dung có nhắc đến con người, hãy mô tả họ dưới dạng "stickman" (người que) hoặc "simple cartoon character" (nhân vật hoạt hình đơn giản) đang thực hiện một hành động cụ thể. TUYỆT ĐỐI KHÔNG mô tả chi tiết khuôn mặt.
+    Mô tả khung hình đó bằng 1 câu tiếng Anh ngắn gọn.
     Trả về đúng định dạng JSON: {{"image_prompt": "câu mô tả tiếng Anh chi tiết", "subtitle": "{scene_text}"}}
     """
                     response = ai_client.chat.completions.create(
@@ -207,7 +207,7 @@ if uploaded_file is not None:
             for attempt in range(5):
                 try:
                     url = f"https://api.cloudflare.com/client/v4/accounts/{CF_ACCOUNT_ID}/ai/run/{CF_MODEL}"
-                    payload = {"prompt": f"Simple minimalist black and white line art drawing, clean vector style, no shading, no realistic texture, pure white background. Subject: {img_prompt}", "steps": 4}
+                    payload = {"prompt": f"Simple 2D vector line art, thick clean black outlines, pure white background, minimalist doodle style. If there are people, draw them as simple stickman or faceless cartoon characters. Subject: {img_prompt}", "steps": 4}
                     cf_res = requests.post(url, headers={"Authorization": f"Bearer {CF_API_TOKEN}"}, json=payload, timeout=60)
                     
                     if cf_res.status_code == 200:
@@ -292,6 +292,7 @@ if uploaded_file is not None:
             video_clips.append(str(video_with_audio))
             
             progress_bar.progress((i + 1) / len(scenes))
+            time.sleep(15)     
 
         # Ghi file phụ đề đồng bộ
         with open(synced_srt_path, "w", encoding="utf-8") as f:
