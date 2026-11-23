@@ -119,16 +119,14 @@ with st.sidebar:
     
     # TÙY CHỌN TỶ LỆ KHUNG HÌNH
     video_format = st.radio("Tỷ lệ khung hình:", ["Dọc (9:16 - TikTok/Reels)", "Ngang (16:9 - YouTube)"])
-    if "Dọc" in video_format:
+        if "Dọc" in video_format:
         canvas_w, canvas_h = 720, 1080
-        region_coords = {"x": 160, "y": 390, "width": 400, "height": 300} # Toạ độ cho video dọc
-        hand_start, hand_end = [170, 400], [530, 630]
-        sub_fontsize, sub_margin = 14, 20 # Chữ nhỏ hơn cho video dọc
-    else:
-        canvas_w, canvas_h = 1080, 720
-        region_coords = {"x": 340, "y": 210, "width": 400, "height": 300} # Toạ độ cho video ngang
-        hand_start, hand_end = [350, 220], [700, 450]
-        sub_fontsize, sub_margin = 18, 30
+        # Sửa lại vùng vẽ (region) to hơn, nằm ở giữa màn hình
+        region_coords = {"x": 110, "y": 250, "width": 500, "height": 500} 
+        # Sửa lại đường đi của bàn tay cho khớp với khung mới
+        hand_start, hand_end = [120, 260], [600, 740]
+        # Sửa lại cỡ chữ phụ đề nhỏ đi và đẩy xuống sát đáy
+        sub_fontsize, sub_margin = 11, 30 
 
     voice_option = st.selectbox(
         "Chọn giọng đọc:",
@@ -181,8 +179,9 @@ if uploaded_file is not None:
                     prompt_system = "Bạn là một chuyên gia vẽ minh họa line-art. Bạn CHỈ trả về JSON hợp lệ."
                     prompt_user = f"""
     Đọc nội dung sau: "{scene_text}"
-    Hãy tưởng tượng ra MỘT khung hình cụ thể, trực quan, dễ vẽ để minh họa cho nội dung này.
-    Mô tả khung hình đó bằng 1 câu tiếng Anh thật chi tiết.
+    Hãy tưởng tượng ra MỘT khung hình cụ thể, trực quan, dễ vẽ (đồ vật, con vật, hoặc hành động rõ ràng) để minh họa cho nội dung này.
+    Tuyệt đối không vẽ các khái niệm trừu tượng.
+    Mô tả khung hình đó bằng 1 câu tiếng Anh thật chi tiết, sử dụng ngôn ngữ đơn giản, KHÔNG dùng các từ ngữ tả thực như (realistic, photographic, highly detailed).
     Trả về đúng định dạng JSON: {{"image_prompt": "câu mô tả tiếng Anh chi tiết", "subtitle": "{scene_text}"}}
     """
                     response = ai_client.chat.completions.create(
@@ -208,7 +207,7 @@ if uploaded_file is not None:
             for attempt in range(5):
                 try:
                     url = f"https://api.cloudflare.com/client/v4/accounts/{CF_ACCOUNT_ID}/ai/run/{CF_MODEL}"
-                    payload = {"prompt": f"black and white line art, thick outlines, white background, {img_prompt}", "steps": 4}
+                    payload = {"prompt": f"Simple minimalist black and white line art drawing, clean vector style, no shading, no realistic texture, pure white background. Subject: {img_prompt}", "steps": 4}
                     cf_res = requests.post(url, headers={"Authorization": f"Bearer {CF_API_TOKEN}"}, json=payload, timeout=60)
                     
                     if cf_res.status_code == 200:
