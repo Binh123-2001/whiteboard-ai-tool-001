@@ -226,17 +226,20 @@ if uploaded_file is not None:
             if not img_success:
                 st.warning(f"⚠️ Cloudflare quá tải ở cảnh {scene_num}, đang chuyển sang máy chủ dự phòng...")
                 try:
-                    time.sleep(5)
+                    time.sleep(5) 
                     encoded_prompt = urllib.parse.quote(full_prompt)
                     fallback_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width={canvas_w}&height={canvas_h}&nologo=true&model=flux"
                     res = requests.get(fallback_url, timeout=60)
-                    if res.status_code == 200:
+                    
+                    # KIỂM TRA KỸ: Nếu status 200 và file tải về > 10KB (ảnh thật) thì mới lưu
+                    if res.status_code == 200 and len(res.content) > 10000:
                         with open(img_path, "wb") as f:
                             f.write(res.content)
                         img_success = True
+                    else:
+                        print("Pollinations trả về ảnh lỗi hoặc quá nhỏ.")
                 except Exception as e:
                     print(f"Lỗi dự phòng: {e}")
-
             # LỚP 3: Nếu mạng sập hoàn toàn, tạo ảnh trắng để không làm hỏng video
             if not img_success:
                 st.error(f"❌ Mạng có vấn đề ở cảnh {scene_num}. Tạo ảnh trắng thay thế để tiếp tục...")
